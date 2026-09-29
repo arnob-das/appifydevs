@@ -47,6 +47,7 @@ services:
       - echogpt-network
 
   pgadmin:
+    profiles: ["tools"]
     image: dpage/pgadmin4:latest
     container_name: echogpt-pgadmin
     restart: unless-stopped
