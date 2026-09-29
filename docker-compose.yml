@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: echogpt-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: echogpt_user
+      POSTGRES_PASSWORD: echogpt_password
+      POSTGRES_DB: echogpt_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U echogpt_user -d echogpt_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - echogpt-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: echogpt-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      API_PREFIX: api/v1
+      DATABASE_URL: postgresql://echogpt_user:echogpt_password@postgres:5432/echogpt_db?schema=public
+      JWT_ACCESS_SECRET: echogpt_production_access_jwt_secret_key_2026
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: echogpt_production_refresh_jwt_secret_key_2026
+      JWT_REFRESH_EXPIRES_IN: 7d
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      THROTTLE_TTL: 60000
+      THROTTLE_LIMIT: 100
+      CORS_ORIGIN: "*"
+    ports:
+      - "3000:3000"
+    networks:
+      - echogpt-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: echogpt-pgadmin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@echogpt.dev
+      PGADMIN_DEFAULT_PASSWORD: Admin@123456
+    ports:
+      - "5050:80"
+    networks:
+      - echogpt-network
+
+networks:
+  echogpt-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
